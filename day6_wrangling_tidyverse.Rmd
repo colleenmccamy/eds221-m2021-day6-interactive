@@ -1,0 +1,110 @@
+---
+title: "Wrangling Data with Tidyr"
+author: "Colleen McCamy"
+date: "2022-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+
+```
+
+
+## Read in WB data files
+
+```{r}
+
+wb_indicators <- read_csv(here::here("data", "wb_indicators.csv"), na = c("..", ""))
+
+# ".." are missing but stored as something for not an empty cell this will give us the read in stage for the true NA, R will automatically see an empty cell as an NA
+
+# reading in the metadata too
+
+wb_metatdata <-read_csv(here("data", "wb_indicators_metadata.csv"))
+
+```
+
+# Tidying up the data
+
+```{r}
+
+# first going to gather all of these columns for the years using pivot longer
+# 1. need to give it what columns do I want to gather together - via span of column names
+# 2. next need to give it the column name for a new column
+# 3. need to say what the value column name should be
+
+wb_indicators_long <- wb_indicators |> 
+  pivot_longer(cols = '2001 [YR2001]': '2020 [YR2020]', 
+               names_to = "year",
+               values_to = "indicator_value")
+
+# year is classified as a character and we would want to address this class(wb_indicators_long$year)
+
+```
+
+
+### separate to clean up the year column
+
+```{r}
+
+# year is classified as a character and we would want to address this class(wb_indicators_long$year)
+
+# want to take this original year column and split up what is in the column in year and year character
+
+wb_clean <- wb_indicators_long |> 
+  separate(col = year, into = c("year", "year_char"), sep = " ") |> 
+  select(-year_char, -"Country Code", -"Series Code") |> 
+  mutate(year = as.numeric((year))) |> 
+  drop_na('Series Name') |> 
+  pivot_wider(names_from = 'Series Name', values_from = indicator_value)
+
+names(wb_clean) <- c("country", "year", "access_clean_fuels_pp", "access_electricity_pp", "co2_emissions_kt", "fossil_fuel_cons_pct", "water_stress")
+
+wb_clean_2 <- wb_clean |> 
+  rename(my_year = year)
+
+# first give column name
+# then say where you want to separate the data (in to what column name)
+# then say what you want to delineate from
+
+
+# then piping into a function used to keep or include columns - filter is rows / select is column
+
+# if r starts as a class then R won't update the column class
+
+# using mutate to update an existing column or add a new column, to update an existing column include the same column title
+
+# drop_na = any row where any value in a column in NA then the whole row will get dropped
+
+# Pivot Wider wants two arguments = names from and values from
+
+# renaming column names 
+
+```
+
+## Subsetting with filter
+
+```{r}
+
+wb_subset <- wb_clean |> 
+  filter(country %in% c("Algeria", "Barbados", "Bulgaria", "Chile"))
+
+# can check values in column country with unique()
+
+ggplot(data = wb_subset, aes(x = year, y = co2_emissions_kt)) + geom_line(aes(color = country)) +
+  facet_wrap(~country)
+
+exclude_this <- c("Algeria", "Barbados", "Bulgaria", "Chile")
+
+wb_example_grouping <- wb_clean |> 
+  filter(!country %in% exclude_this)
+
+# this is excluding items that you don't want to include
+
+```
+
