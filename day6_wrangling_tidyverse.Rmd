@@ -108,3 +108,274 @@ wb_example_grouping <- wb_clean |>
 
 ```
 
+## Filtering Rows
+
+Example 1: filtering to only keep exact matches
+
+```{r}
+# only filtering for height greater than 180
+
+ex_1 <- starwars |> 
+  filter(height > 180)
+
+```
+
+# exact match filtering
+
+```{r}
+
+ex_2 <- starwars |> 
+  filter(eye_color == "blue")
+
+ex_3 <- starwars |> 
+  filter(homeworld == "Naboo")
+
+```
+
+Filtering to satisfy multiple conditions - for both to be true
+
+```{r}
+
+ex_4 <- starwars |> 
+  filter(height > 180 & homeworld == "Tatooine")
+
+ex_5 <- starwars |> 
+  filter(species == "Human" & hair_color == "brown")
+
+
+```
+
+Filtering OR statements
+
+```{r}
+
+ex_6 <- starwars |> 
+  filter(height > 180 | eye_color == "yellow")
+
+ex_7 <- starwars |> 
+  filter(homeworld == "Endor" | species == "Droid")
+# keep rows if homeowrld is Endor or species is droid
+```
+
+Using the in operator
+
+```{r}
+
+ex_8 <- starwars |> 
+  filter(eye_color == "blue" | eye_color == "red" | eye_color == "brown")
+
+ex_9 <- starwars |> 
+  filter(eye_color %in% c("blue", "brown", "red"))
+
+# the in operator looks in each cell and ask is this cell blue, brown or red
+
+# do not use the double equals as it is asking if the row equals vector item 1, while we want it for each cell to match blue, red or brown
+
+ex_10 <- starwars |> 
+    filter(eye_color == c("blue", "brown", "red"))
+# NEVER DO THIS ^^^^^^^
+
+ex_11 <- starwars |> 
+  filter(homeworld %in% c("Tatooine", "Naboo", "Endor"), 
+         height < 150)
+
+```
+
+Examples with the negate operator
+
+```{r}
+
+ex_12 <- starwars |> 
+  filter(species != "Human")
+
+ex_13 <- starwars |> 
+  filter(!species %in% c("Human", "Ewok", "Wookiee"))
+
+```
+
+## `select()` The columns one = select or include columns
+
+multiple ways to do this, indexing and to use the dollar sign but today we are using the select() function
+
+```{r}
+
+# Select by name 
+
+ex_14 <- wb_clean |> 
+  select(country, year, co2_emissions_kt)
+
+# Select by range of column names
+
+ex_15 <- wb_clean |> 
+  select(year:fossil_fuel_cons_pct)
+
+# exculding thins from a range too
+
+ex_16 <- wb_clean |> 
+  select(year:fossil_fuel_cons_pct, -access_electricity_pp)
+
+```
+
+
+```{r}
+
+#can pipe through multiple sequences in all one items so you don't need to create intermediate stages
+#always check at the different points of a pipe statement
+
+ex_17 <- wb_clean |> 
+  filter(country %in% c("Bolivia", "Chile", "Mexico")) |> 
+  select(country:fossil_fuel_cons_pct)
+
+```
+
+#Using select to rename and move things around
+
+```{r}
+
+ex_18 <- wb_clean |> 
+  select(year_new = year,
+         emissions = co2_emissions_kt,
+         country_name = country)
+
+# a bunch of things happened
+# 1. kept the columns that you wanted to keep
+# 2. renamed the columns,
+# 3. re ordered the columns
+
+```
+
+```{r}
+
+# select only columns for country, year and water stress and reorder as them as year, country water stress, then filter to only include observations for any three countries of you choosing
+
+ex_19 <- wb_clean |> 
+  select(year = year, country = country, water_stress = water_stress) |> 
+  filter(country %in% c("Malawi", "Costa Rica", "Lebanon"))
+
+# silent errors are way more scary
+
+```
+
+Renaming Columns
+
+```{r}
+
+ex_20 <- wb_clean |> 
+  rename(ffcp = fossil_fuel_cons_pct, 
+         ws = water_stress)
+
+ex_21 <- wb_clean |> 
+  rename(place = country, 
+         electric = access_electricity_pp)
+
+```
+
+## `mutate()` update an exisiting column or add a new one
+
+If you assign a NEW column name, it will add a new column to the end of your date frame. If you asign an existing column name, it will overwrite that column.
+
+```{r}
+
+ex_22 <- wb_clean |> 
+  mutate(co2_emissions_t = co2_emissions_kt * 1000) |> 
+  relocate(co2_emissions_t, .after = co2_emissions_kt)
+
+ex_23 <- wb_clean |> 
+  mutate(yay = "YAY")
+
+# can add a new column based on a specific value
+
+ex_24 <- wb_clean |> 
+  mutate(year = as.character(year))
+
+ex_25 <- wb_clean |> 
+  mutate(year = as.numeric(year))
+
+# dplyr::relocate()
+
+ex_26 <- wb_clean |> 
+  relocate(water_stress, .after = year)
+
+
+
+```
+
+
+## `groub_by |> summarize` 
+group_by : Creates groups under the hood - just using group by will do nothing
+summarize : apply your functions to EACH GROUP and return them in a nice summary table
+
+```{r}
+
+# calculate average heights of 
+
+ex_27 <- starwars |> 
+  group_by(species, homeworld) |> 
+  summarize(mean_height = mean(height, na.rm = TRUE),
+            mean_mass = mean(mass, na.rm = TRUE))
+
+```
+
+
+```{r}
+
+#frequency table below - multiple observations that match across the way and counts them - we want to create a case table where each is it's own case
+
+df <- tribble(
+  ~ species, ~length, ~number,
+  "lobsters", 12, 4,
+  "lobsters", 14, 6,
+  "lobsters", 15, 2,
+)
+
+df_case <- df |> 
+  uncount(number)
+
+```
+
+
+## Count functions
+
+```{r}
+
+# count counts observations
+# comnination of groub_by summarize n()
+
+# count for different homeworld in starwars data set
+
+starwars |> 
+  count(homeworld, species)
+
+# it is doing group by - summarize and n which n is the number of rows
+
+starwars |> 
+  group_by(homeworld, species) |> 
+  summarize(size = n())
+
+# you can do multiple calculations in summarize but you can only count the number of rows by groups in count
+
+```
+
+Practice example:
+
+- start for wb_clean
+- only keep observations for Nicaragua, Ecuador, Peru and Chile AND for years greater than 2005
+- only keep columns for country, year and co2 emissions
+- add a new column that is co2 emissions converted to megatons
+- find the total co2 emissions in megatons for the years still in the data set by the country (with sum)
+
+
+```{r}
+
+practice_example <- wb_clean |> 
+  filter(country %in% c("Nicaragua", "Ecuador", "Peru", "Chile"), year > 2005) |> 
+  select(country, year, co2_emissions_kt) |> 
+  mutate(co2_emissions_mt = co2_emissions_kt / 1000) |> 
+  group_by(country) |> 
+  summarize(sum_co2_emissions_mt = sum(co2_emissions_mt, na.rm = TRUE))
+
+
+  # can use min to check years less than
+  
+```
+
